@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_cors import CORS  # Add this import
 import requests
 import logging
 import os
@@ -9,9 +10,11 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__,
-            template_folder='templates',
-            static_folder='static',
-            static_url_path='/static')
+           static_folder='static',
+           static_url_path='/static',
+           template_folder='templates')
+
+CORS(app)  # Add CORS support
 
 limiter = Limiter(
     app=app,
