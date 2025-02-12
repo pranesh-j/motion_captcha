@@ -10,13 +10,22 @@ import (
 	"time"
 )
 
+type GameMode string
+
+const (
+	ModeBounce GameMode = "bounce"
+	ModeDrop   GameMode = "drop"
+)
+
 type PhysicsParams struct {
-	SessionID string  `json:"session_id"`
-	Gravity   float64 `json:"gravity"`
-	Velocity  float64 `json:"velocity"`
-	Angle     float64 `json:"angle"`
-	Friction  float64 `json:"friction"`
-	StartTime int64   `json:"startTime"`
+	SessionID  string   `json:"session_id"`
+	GameMode   GameMode `json:"game_mode"`
+	Gravity    float64  `json:"gravity"`
+	Velocity   float64  `json:"velocity"`
+	Angle      float64  `json:"angle"`
+	Friction   float64  `json:"friction"`
+	StartTime  int64    `json:"startTime"`
+	CatchCount int      `json:"catch_count"`
 }
 
 type ValidationRequest struct {
@@ -27,8 +36,9 @@ type ValidationRequest struct {
 }
 
 type ValidationResponse struct {
-	Valid bool   `json:"valid"`
-	Error string `json:"error,omitempty"`
+	Valid      bool   `json:"valid"`
+	CatchCount int    `json:"catch_count"`
+	Error      string `json:"error,omitempty"`
 }
 
 var activeSessions = make(map[string]PhysicsParams)
@@ -48,13 +58,30 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 
 	sessionID := fmt.Sprintf("%d", time.Now().UnixNano())
 
+	// Randomly select game mode
+	gameMode := ModeBounce
+	if rand.Float64() < 0.5 {
+		gameMode = ModeDrop
+	}
+
 	params := PhysicsParams{
-		SessionID: sessionID,
-		Gravity:   200 + rand.Float64()*200,  // 200-400
-		Velocity:  200 + rand.Float64()*100,  // 200-300
-		Angle:     0.7 + rand.Float64()*0.6,  // 0.7-1.3 radians
-		Friction:  0.1 + rand.Float64()*0.05, // 0.1-0.15
-		StartTime: time.Now().UnixNano(),
+		SessionID:  sessionID,
+		GameMode:   gameMode,
+		StartTime:  time.Now().UnixNano(),
+		CatchCount: 0,
+	}
+
+	switch gameMode {
+	case ModeBounce:
+		params.Gravity = 200 + rand.Float64()*200   // 200-400
+		params.Velocity = 200 + rand.Float64()*100  // 200-300
+		params.Angle = 0.7 + rand.Float64()*0.6     // 0.7-1.3 radians
+		params.Friction = 0.1 + rand.Float64()*0.05 // 0.1-0.15
+	case ModeDrop:
+		params.Gravity = 150 + rand.Float64()*100 // 150-250
+		params.Velocity = 0
+		params.Angle = 0
+		params.Friction = 0
 	}
 
 	activeSessions[sessionID] = params
@@ -83,20 +110,33 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	elapsed := req.Time
+	var x, y float64
 
-	vx := session.Velocity * math.Cos(session.Angle)
-	vy := session.Velocity * math.Sin(session.Angle)
-	x := vx * elapsed * (1 - session.Friction*elapsed)
-	y := vy*elapsed - 0.5*session.Gravity*elapsed*elapsed
+	switch session.GameMode {
+	case ModeBounce:
+		vx := session.Velocity * math.Cos(session.Angle)
+		vy := session.Velocity * math.Sin(session.Angle)
+		x = vx * elapsed * (1 - session.Friction*elapsed)
+		y = vy*elapsed - 0.5*session.Gravity*elapsed*elapsed
+	case ModeDrop:
+		x = 0
+		y = -0.5 * session.Gravity * elapsed * elapsed
+	}
 
 	distance := math.Sqrt(math.Pow(req.ClickX-x, 2) + math.Pow(req.ClickY-y, 2))
-	threshold := 20.0 // Increased threshold for better click detection
+	threshold := 20.0
 
-	log.Printf("Validation Details:\n  Ball Position: (%.2f, %.2f)\n  Click Position: (%.2f, %.2f)\n  Distance: %.2f (threshold: %.0f)\n  Time: %.2f\n  Valid: %v",
-		x, y, req.ClickX, req.ClickY, distance, threshold, elapsed, distance <= threshold)
+	isValid := distance <= threshold
+	if isValid {
+		session.CatchCount++
+		activeSessions[req.SessionID] = session
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ValidationResponse{Valid: distance <= threshold})
+	json.NewEncoder(w).Encode(ValidationResponse{
+		Valid:      isValid,
+		CatchCount: session.CatchCount,
+	})
 }
 
 func main() {

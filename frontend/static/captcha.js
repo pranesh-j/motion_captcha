@@ -3,6 +3,9 @@ const ctx = canvas.getContext('2d');
 let startTime, physicsParams, animationId, timerInterval;
 let isRunning = false;
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000; // 2 seconds
+
 function setCanvasSize() {
     canvas.width = 500;
     canvas.height = 300;
@@ -15,6 +18,23 @@ timerElement.className = 'timer';
 timerElement.id = 'timer';
 timerElement.style.display = 'none';
 canvas.parentElement.appendChild(timerElement);
+
+async function fetchWithRetry(url, options = {}, retries = MAX_RETRIES) {
+    try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response;
+    } catch (error) {
+        if (retries > 0) {
+            updateStatus('Waking up server... Please wait.', 'neutral');
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+            return fetchWithRetry(url, options, retries - 1);
+        }
+        throw error;
+    }
+}
 
 function animate() {
     if (!isRunning) return;
@@ -73,7 +93,7 @@ function animate() {
     }
 }
 
-function handleClick(e) {
+async function handleClick(e) {
     if (!isRunning) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -114,38 +134,40 @@ function handleClick(e) {
         time: t  
     };
 
-    fetch('/proxy/validate', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
+    try {
+        const response = await fetchWithRetry('/proxy/validate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        const responseData = await response.json();
+        
         isRunning = false;
         cancelAnimationFrame(animationId);
         document.getElementById('timer').style.display = 'none';
-        if (data.valid) {
+        
+        if (responseData.valid) {
             updateStatus('Success! You caught the ball.', 'success');
         } else {
             updateStatus('Missed! Try again.', 'error');
         }
+        
         const button = document.getElementById('startButton');
         button.disabled = false;
         button.textContent = 'Start Verification';
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('Error:', error);
         updateStatus('Error validating click. Try again.', 'error');
         document.getElementById('timer').style.display = 'none';
         const button = document.getElementById('startButton');
         button.disabled = false;
         button.textContent = 'Start Verification';
-    });
+    }
 }
 
-function startCaptcha() {
+async function startCaptcha() {
     isRunning = false;
     if (animationId) {
         cancelAnimationFrame(animationId);
@@ -153,26 +175,33 @@ function startCaptcha() {
 
     const button = document.getElementById('startButton');
     button.disabled = true;
-    button.textContent = 'Verification in Progress...';
+    button.textContent = 'Starting...';
 
-    timerElement.style.display = 'block';
-    timerElement.textContent = '3.0s';
+    timerElement.style.display = 'none';
+    updateStatus('Initializing...', 'neutral');
 
-    updateStatus('', 'neutral');
-
-    fetch('/proxy/generate')
-        .then(response => response.json())
-        .then(data => {
-            console.log('Received parameters:', data);
-            physicsParams = data;
-            startTime = Date.now();
-            isRunning = true;
-            animate();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            updateStatus('Error starting CAPTCHA. Try again.', 'error');
-        });
+    try {
+        const response = await fetchWithRetry('/proxy/generate');
+        const data = await response.json();
+        
+        console.log('Received parameters:', data);
+        physicsParams = data;
+        startTime = Date.now();
+        isRunning = true;
+        
+        timerElement.style.display = 'block';
+        timerElement.textContent = '3.0s';
+        
+        button.textContent = 'Verification in Progress...';
+        updateStatus('', 'neutral');
+        
+        animate();
+    } catch (error) {
+        console.error('Error:', error);
+        button.disabled = false;
+        button.textContent = 'Start Verification';
+        updateStatus('Error starting CAPTCHA. Click to try again.', 'error');
+    }
 }
 
 function updateStatus(message, type) {
@@ -185,5 +214,16 @@ function updateStatus(message, type) {
     button.textContent = isRunning ? 'Verification in Progress...' : 'Start Verification';
 }
 
+function warmupServer() {
+    fetch('/proxy/generate')
+        .then(response => response.ok)
+        .catch(error => console.log('Warmup request sent'));
+}
+
 canvas.addEventListener('click', handleClick);
 document.getElementById('startButton').addEventListener('click', startCaptcha);
+
+// Warmup the server when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(warmupServer, 1000);
+});
