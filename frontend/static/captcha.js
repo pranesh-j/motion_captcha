@@ -8,7 +8,7 @@ let ballX, ballY, ballVelocity;
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
-const BALL_RADIUS = 15;
+const BALL_RADIUS = 12; // Reduced from 18 to 12 for better proportions
 
 function setCanvasSize() {
     const container = canvas.parentElement;
@@ -47,7 +47,7 @@ function initDropCatch() {
     ballX = Math.random() * (canvas.width - BALL_RADIUS * 4) + BALL_RADIUS * 2;
     ballY = BALL_RADIUS;
     // Start with very small initial velocity
-    ballVelocity = 0.2; // Reduced from 0.5 to 0.2
+    ballVelocity = 0.15; // Reduced from 0.2 for slower initial speed
 }
 
 function animateProjectile() {
@@ -57,35 +57,73 @@ function animateProjectile() {
     
     const t = (Date.now() - startTime) / 1000;
     
-    // Don't process if time has expired
-    if (t > 3.0) {
+    if (t > 5.0) { // Increased to 5.0 seconds to match
         endGame('Time expired! Try again.', 'error');
         return;
     }
-
-    const vx = physicsParams.velocity * Math.cos(physicsParams.angle);
-    const vy = physicsParams.velocity * Math.sin(physicsParams.angle);
-    
-    // Calculate position with proper physics
-    const x = vx * t * (1 - physicsParams.friction * t);
-    const rawY = vy * t - 0.5 * physicsParams.gravity * t * t;
-    const y = Math.max(0, rawY);
 
     // Draw ground
     ctx.save();
     ctx.fillStyle = '#e9ecef';
     ctx.fillRect(0, canvas.height - 25, canvas.width, 25);
     ctx.restore();
+
+    // Simple bouncing ball physics
+    const period = 1.5; // Time for one complete bounce
+    const amplitude = canvas.height * 0.6; // Height of bounce
+    const horizontalSpeed = 2; // Pixels per frame for horizontal movement
     
-    // Calculate ball position with proper starting height
-    const startHeight = 35;
-    ballX = canvas.width/2 + x;
-    ballY = canvas.height - startHeight - y;
+    // Calculate vertical position using sine wave for smooth bouncing
+    const verticalOffset = Math.abs(Math.sin(t * Math.PI / period)) * amplitude;
+    
+    // Calculate horizontal position - move from left to right
+    ballX = (canvas.width * 0.2) + (t * horizontalSpeed * 60);
+    ballY = (canvas.height - 40) - verticalOffset;
 
-    // Ensure ball doesn't go below the ground
-    ballY = Math.min(ballY, canvas.height - startHeight);
+    // End game if ball reaches right side without being clicked
+    if (ballX > canvas.width * 0.8) {
+        endGame('Ball escaped! Try again.', 'error');
+        return;
+    }
 
-    // Draw ball shadow
+    // Draw ball
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(ballX, ballY, BALL_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = '#dc3545';
+    ctx.fill();
+    ctx.restore();
+
+    const timeLeft = Math.max(0, 5.0 - t); // Updated to 5.0 seconds
+    timerElement.textContent = timeLeft.toFixed(1) + 's';
+
+    animationId = requestAnimationFrame(animateProjectile);
+}
+
+function animateDropCatch() {
+    if (!isRunning) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const t = (Date.now() - startTime) / 1000;
+    
+    // Increased timer from 3.0 to 5.0 seconds
+    if (t > 5.0) {
+        endGame('Time expired! Try again.', 'error');
+        return;
+    }
+    
+    // Draw target zone
+    ctx.save();
+    ctx.fillStyle = '#e9ecef';
+    ctx.fillRect(0, canvas.height - 25, canvas.width, 25);
+    ctx.restore();
+
+    // Update ball position with much gentler acceleration
+    ballVelocity += 0.05; // Reduced from 0.08 for even smoother acceleration
+    ballY += ballVelocity;
+
+    // Draw ball shadow for better visual feedback
     ctx.save();
     ctx.beginPath();
     ctx.arc(ballX, ballY + 3, BALL_RADIUS, 0, Math.PI * 2);
@@ -101,50 +139,7 @@ function animateProjectile() {
     ctx.fill();
     ctx.restore();
 
-    const timeLeft = Math.max(0, 3.0 - t);
-    timerElement.textContent = timeLeft.toFixed(1) + 's';
-
-    // Check if ball has effectively stopped
-    if (Math.abs(vx * (1 - physicsParams.friction * t)) < 0.1 && y <= 0) {
-        endGame('Time expired! Try again.', 'error');
-        return;
-    }
-
-    animationId = requestAnimationFrame(animateProjectile);
-}
-
-function animateDropCatch() {
-    if (!isRunning) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    const t = (Date.now() - startTime) / 1000;
-    
-    // Don't process if time has expired
-    if (t > 3.0) {
-        endGame('Time expired! Try again.', 'error');
-        return;
-    }
-    
-    // Draw target zone
-    ctx.save();
-    ctx.fillStyle = '#e9ecef';
-    ctx.fillRect(0, canvas.height - 25, canvas.width, 25);
-    ctx.restore();
-
-    // Update ball position with much gentler acceleration
-    ballVelocity += 0.08; // Reduced from 0.15 to 0.08
-    ballY += ballVelocity;
-
-    // Draw ball
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(ballX, ballY, BALL_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = '#dc3545';
-    ctx.fill();
-    ctx.restore();
-
-    const timeLeft = Math.max(0, 3.0 - t);
+    const timeLeft = Math.max(0, 5.0 - t); // Updated to 5.0 seconds
     timerElement.textContent = timeLeft.toFixed(1) + 's';
 
     // End game if ball hits ground
@@ -186,43 +181,30 @@ async function handleClick(e) {
 }
 
 async function handleProjectileClick(canvasX, canvasY) {
-    const t = (Date.now() - startTime) / 1000;
+    if (!isRunning) return;
+
     const distance = Math.sqrt(
         Math.pow(canvasX - ballX, 2) + 
         Math.pow(canvasY - ballY, 2)
     );
 
-    if (distance > BALL_RADIUS * 2) {
+    // More forgiving click detection
+    if (distance > BALL_RADIUS * 2.2) {
         updateStatus('Missed! Try clicking closer to the ball.', 'error');
         return;
     }
 
-    const physicsX = canvasX - canvas.width/2;
-    const physicsY = canvas.height - 40 - canvasY;
-
-    try {
-        const response = await fetchWithRetry('/proxy/validate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                session_id: physicsParams.session_id,
-                click_x: physicsX,
-                click_y: physicsY,
-                time: t
-            })
-        });
-        const responseData = await response.json();
-        
-        if (responseData.valid) {
-            endGame('Success! You caught the ball.', 'success');
-        } else {
-            endGame('Missed! Try again.', 'error');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        endGame('Error validating click. Try again.', 'error');
+    successCount++;
+    updateProgressIndicator(successCount);
+    
+    if (successCount >= 3) {
+        isRunning = false;
+        cancelAnimationFrame(animationId);
+        endGame('Success! You caught the ball 3 times!', 'success');
+    } else {
+        // Reset for next bounce cycle
+        startTime = Date.now();
+        updateStatus('Good! ' + (3 - successCount) + ' more to go!', 'success');
     }
 }
 
@@ -238,6 +220,8 @@ function handleDropCatchClick(canvasX, canvasY) {
     }
 
     successCount++;
+    updateProgressIndicator(successCount);
+    
     if (successCount >= 3) {
         endGame('Success! You caught the ball 3 times!', 'success');
     } else {
@@ -248,51 +232,54 @@ function handleDropCatchClick(canvasX, canvasY) {
 }
 
 async function startCaptcha() {
-    isRunning = false;
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-    }
-
     const button = document.getElementById('startButton');
     button.disabled = true;
-    button.textContent = 'Starting...';
-
-    updateStatus('Initializing...', 'neutral');
+    button.textContent = 'Verifying...';
+    
+    // Reset game state
+    isRunning = false; // Start as false until popup disappears
     successCount = 0;
-
+    
+    // Clear any existing mode indicator
+    const modeIndicator = document.getElementById('modeIndicator');
+    modeIndicator.style.display = 'none';
+    modeIndicator.classList.remove('show');
+    
     // Randomly choose game mode
     gameMode = Math.random() < 0.5 ? 'projectile' : 'dropcatch';
-
-    try {
-        // Show mode indicator first
-        await showModeIndicator(gameMode);
-
-        // After mode indicator is done, prepare the game
-        if (gameMode === 'projectile') {
-            const response = await fetchWithRetry('/proxy/generate');
-            const data = await response.json();
-            physicsParams = data;
-        }
-        
-        startTime = Date.now();
-        isRunning = true;
-        timerElement.style.display = 'block';
-        button.textContent = 'Verification in Progress...';
-        
-        if (gameMode === 'projectile') {
-            updateStatus('Click the ball before it disappears!', 'neutral');
-            animateProjectile();
-        } else {
-            initDropCatch();
-            updateStatus('Catch the falling ball 3 times!', 'neutral');
-            animateDropCatch();
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        button.disabled = false;
-        button.textContent = 'Start Verification';
-        updateStatus('Error starting verification. Try again.', 'error');
-    }
+    
+    // Show mode indicator first
+    modeIndicator.textContent = gameMode === 'dropcatch' ? 'Catch the falling ball!' : 'Click the moving ball!';
+    modeIndicator.style.display = 'block';
+    
+    // Show mode indicator with proper timing
+    setTimeout(() => {
+        modeIndicator.classList.add('show');
+        setTimeout(() => {
+            modeIndicator.classList.remove('show');
+            setTimeout(() => {
+                modeIndicator.style.display = 'none';
+                // Start the game only after popup disappears
+                isRunning = true;
+                startTime = Date.now();
+                
+                // Initialize based on game mode
+                if (gameMode === 'dropcatch') {
+                    initDropCatch();
+                    animateDropCatch();
+                } else {
+                    ballX = canvas.width * 0.2;
+                    ballY = canvas.height - 40;
+                    animateProjectile();
+                }
+            }, 300);
+        }, 1500); // Show message for 1.5 seconds
+    }, 0);
+    
+    timerElement.style.display = 'block';
+    progressIndicator.classList.add('show');
+    updateProgressIndicator(0);
+    updateStatus('', 'neutral');
 }
 
 function updateStatus(message, type) {
@@ -312,6 +299,7 @@ async function warmupServer() {
 function createModeIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'mode-indicator';
+    indicator.id = 'modeIndicator';
     return indicator;
 }
 

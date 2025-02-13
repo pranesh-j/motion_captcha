@@ -1,8 +1,8 @@
 body {
     margin: 0;
-    padding: 20px;
+    padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    background-color: #f5f5f5;
+    background-color: #f8f9fa;
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -11,71 +11,69 @@ body {
 
 .main-container {
     text-align: center;
-    max-width: 800px;
+    width: 100%;
+    max-width: 360px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 0;
 }
 
 h1 {
-    color: #333;
-    font-size: 28px;
-    margin: 0 0 15px;
+    color: #2c3e50;
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    letter-spacing: -0.3px;
 }
 
 .description {
-    color: #666;
-    font-size: 16px;
-    margin: 0 0 25px;
-    line-height: 1.5;
-}
-
-.verify-text {
-    color: #333;
-    font-size: 18px;
-    margin: 0 0 20px;
-    font-weight: 500;
+    color: #6c757d;
+    font-size: 13px;
+    margin: 0 0 24px;
+    line-height: 1.4;
+    padding: 0 16px;
 }
 
 .captcha-container {
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    padding: 16px;
     width: 100%;
-    max-width: 400px;
-    margin: 0 auto;
+    box-sizing: border-box;
     position: relative;
-    min-height: 350px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
+}
+
+.canvas-wrapper {
+    width: 100%;
+    height: 280px;
+    position: relative;
+    background-color: #f8f9fa;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
 }
 
 #captchaCanvas {
-    border-radius: 8px;
-    margin: 15px 0 10px;
-    background-color: #f8f9fa;
-    display: block;
     width: 100%;
-    max-width: 360px;
-    height: 220px;
+    height: 100%;
     touch-action: none;
-    position: relative;
+    display: block;
 }
 
 .timer {
     display: none;
     position: absolute;
-    top: 3px;
+    top: 12px;
     left: 50%;
     transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.75);
     color: white;
-    padding: 5px 15px;
-    border-radius: 15px;
+    padding: 6px 12px;
+    border-radius: 20px;
     font-size: 14px;
+    font-weight: 500;
     z-index: 100;
+    backdrop-filter: blur(4px);
 }
 
 .mode-indicator {
@@ -83,85 +81,109 @@ h1 {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 18px;
-    color: #6c757d;
+    font-size: 15px;
+    color: #2d3748;
     text-align: center;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.2s ease;
     pointer-events: none;
+    background-color: rgba(255, 255, 255, 0.97);
+    padding: 12px 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
 }
 
 .mode-indicator.show {
     opacity: 1;
 }
 
-.mode-indicator .icon {
-    font-size: 24px;
-    margin-bottom: 10px;
-    display: block;
-}
-
 .progress-indicator {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 5px 10px;
-    border-radius: 12px;
-    font-size: 14px;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 4px;
     opacity: 0;
-    transform: translateY(-10px);
-    transition: all 0.3s ease;
+    transition: opacity 0.2s ease;
+    padding: 6px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 12px;
+    backdrop-filter: blur(4px);
 }
 
 .progress-indicator.show {
     opacity: 1;
-    transform: translateY(0);
 }
 
-.status-message {
-    margin: 10px 0;
-    padding: 8px 16px;
-    border-radius: 4px;
-    width: 100%;
-    max-width: 320px;
-    text-align: center;
-    transition: all 0.3s ease;
+.progress-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #e2e8f0;
+    transition: background-color 0.2s ease;
 }
 
-.status-message.success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.status-message.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-.status-message.neutral {
-    background-color: #e2e3e5;
-    color: #383d41;
-    border: 1px solid #d6d8db;
+.progress-dot.active {
+    background-color: #0d6efd;
 }
 
 .btn {
-    background-color: #0066ff;
+    background-color: #0d6efd;
     color: white;
     border: none;
-    padding: 12px 24px;
-    border-radius: 6px;
-    font-size: 16px;
+    border-radius: 10px;
+    height: 44px;
+    font-size: 15px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
-    display: block;
-    width: calc(100% - 40px);
-    max-width: 300px;
-    margin: 5px 0;
+    transition: all 0.2s ease;
+    width: 100%;
+    margin: 0 0 12px;
+}
+
+.btn:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.15);
+}
+
+.btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.status-message {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
+    box-sizing: border-box;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-message.error {
+    background-color: #fff5f5;
+    color: #e53e3e;
+}
+
+.status-message.success {
+    background-color: #f0fff4;
+    color: #38a169;
+}
+
+.status-message.neutral {
+    background-color: #f8f9fa;
+    color: #6c757d;
 }
 
 .ripple {
@@ -254,19 +276,4 @@ h1 {
     0% { opacity: 1; }
     50% { opacity: 0.7; }
     100% { opacity: 1; }
-}
-
-.btn:hover {
-    background-color: #0052cc;
-}
-
-.btn:active {
-    transform: translateY(1px);
-}
-
-.btn:disabled {
-    background-color: #0066ff;
-    opacity: 0.7;
-    cursor: wait;
-    animation: pulse 1.5s infinite;
 }

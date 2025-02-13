@@ -5,17 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MotionMatch CAPTCHA</title>
     <link rel="stylesheet" href="/static/style.css">
-    <meta name="description" content="MotionMatch CAPTCHA - A modern, physics-based CAPTCHA system that challenges users to interact with a bouncing ball.">
 </head>
 <body>
     <div class="main-container">
         <h1>MotionMatch CAPTCHA</h1>
-        <p class="description">A modern, physics-based CAPTCHA that challenges users to interact with a bouncing ball. Secure, accessible, and engaging.</p>
-        <p class="verify-text">Verify you're human</p>
+        <p class="description">A modern, physics-based CAPTCHA that challenges users to interact with a bouncing ball.</p>
         <div class="captcha-container">
             <div class="canvas-wrapper">
                 <div id="timer" class="timer"></div>
                 <canvas id="captchaCanvas"></canvas>
+                <div id="modeIndicator" class="mode-indicator"></div>
+                <div id="progressIndicator" class="progress-indicator">
+                    <div class="progress-dot"></div>
+                    <div class="progress-dot"></div>
+                    <div class="progress-dot"></div>
+                </div>
             </div>
             <button id="startButton" class="btn">Start Verification</button>
             <div id="status" class="status-message"></div>
