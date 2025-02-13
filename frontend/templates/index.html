@@ -13,8 +13,10 @@
         <p class="description">A modern, physics-based CAPTCHA that challenges users to interact with a bouncing ball. Secure, accessible, and engaging.</p>
         <p class="verify-text">Verify you're human</p>
         <div class="captcha-container">
-            <div id="timer" class="timer"></div>
-            <canvas id="captchaCanvas"></canvas>
+            <div class="canvas-wrapper">
+                <div id="timer" class="timer"></div>
+                <canvas id="captchaCanvas"></canvas>
+            </div>
             <button id="startButton" class="btn">Start Verification</button>
             <div id="status" class="status-message"></div>
         </div>
