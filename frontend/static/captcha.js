@@ -1,14 +1,30 @@
-const canvas = document.getElementById('captchaCanvas');
-const ctx = canvas.getContext('2d');
-let startTime, physicsParams, animationId;
+// Game state variables
 let isRunning = false;
-let gameMode = 'projectile'; // or 'dropcatch'
+let gameMode = '';
 let successCount = 0;
-let ballX, ballY, ballVelocity;
+let startTime = 0;
+let animationId = null;
+let ballX = 0;
+let ballY = 0;
+let ballVelocity = 0;
+
+// Mode tracking for equal distribution
+let dropCatchCount = 0;
+let projectileCount = 0;
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
 const BALL_RADIUS = 12; // Reduced from 18 to 12 for better proportions
+
+// Add device detection
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+// Adjust speeds based on device
+const SPEED_MULTIPLIER = isMobile ? 0.3 : 0.8; // Reduced from 0.5 to 0.3 for mobile, and added general speed reduction
+const GRAVITY_MULTIPLIER = isMobile ? 0.5 : 0.8; // Further reduced gravity effect
+
+const canvas = document.getElementById('captchaCanvas');
+const ctx = canvas.getContext('2d');
 
 function setCanvasSize() {
     const container = canvas.parentElement;
@@ -47,7 +63,7 @@ function initDropCatch() {
     ballX = Math.random() * (canvas.width - BALL_RADIUS * 4) + BALL_RADIUS * 2;
     ballY = BALL_RADIUS;
     // Start with very small initial velocity
-    ballVelocity = 0.15; // Reduced from 0.2 for slower initial speed
+    ballVelocity = 0.1 * SPEED_MULTIPLIER; // Reduced initial velocity and adjusted for mobile
 }
 
 function animateProjectile() {
@@ -57,30 +73,25 @@ function animateProjectile() {
     
     const t = (Date.now() - startTime) / 1000;
     
-    if (t > 5.0) { // Increased to 5.0 seconds to match
+    if (t > 5.0) {
         endGame('Time expired! Try again.', 'error');
         return;
     }
 
-    // Draw ground
     ctx.save();
     ctx.fillStyle = '#e9ecef';
     ctx.fillRect(0, canvas.height - 25, canvas.width, 25);
     ctx.restore();
 
-    // Simple bouncing ball physics
-    const period = 1.5; // Time for one complete bounce
-    const amplitude = canvas.height * 0.6; // Height of bounce
-    const horizontalSpeed = 2; // Pixels per frame for horizontal movement
+    // Adjusted physics for mobile
+    const period = isMobile ? 2.5 : 2; // Even slower bounce period
+    const amplitude = canvas.height * (isMobile ? 0.4 : 0.5); // Lower bounce height
+    const horizontalSpeed = 1.2 * SPEED_MULTIPLIER; // Significantly reduced horizontal speed
     
-    // Calculate vertical position using sine wave for smooth bouncing
     const verticalOffset = Math.abs(Math.sin(t * Math.PI / period)) * amplitude;
-    
-    // Calculate horizontal position - move from left to right
     ballX = (canvas.width * 0.2) + (t * horizontalSpeed * 60);
     ballY = (canvas.height - 40) - verticalOffset;
 
-    // End game if ball reaches right side without being clicked
     if (ballX > canvas.width * 0.8) {
         endGame('Ball escaped! Try again.', 'error');
         return;
@@ -94,7 +105,7 @@ function animateProjectile() {
     ctx.fill();
     ctx.restore();
 
-    const timeLeft = Math.max(0, 5.0 - t); // Updated to 5.0 seconds
+    const timeLeft = Math.max(0, 5.0 - t);
     timerElement.textContent = timeLeft.toFixed(1) + 's';
 
     animationId = requestAnimationFrame(animateProjectile);
@@ -119,9 +130,9 @@ function animateDropCatch() {
     ctx.fillRect(0, canvas.height - 25, canvas.width, 25);
     ctx.restore();
 
-    // Update ball position with much gentler acceleration
-    ballVelocity += 0.05; // Reduced from 0.08 for even smoother acceleration
-    ballY += ballVelocity;
+    // Slower acceleration for mobile
+    ballVelocity += (0.05 * GRAVITY_MULTIPLIER);
+    ballY += (ballVelocity * SPEED_MULTIPLIER);
 
     // Draw ball shadow for better visual feedback
     ctx.save();
@@ -237,7 +248,7 @@ async function startCaptcha() {
     button.textContent = 'Verifying...';
     
     // Reset game state
-    isRunning = false; // Start as false until popup disappears
+    isRunning = false;
     successCount = 0;
     
     // Clear any existing mode indicator
@@ -245,8 +256,24 @@ async function startCaptcha() {
     modeIndicator.style.display = 'none';
     modeIndicator.classList.remove('show');
     
-    // Randomly choose game mode
-    gameMode = Math.random() < 0.5 ? 'projectile' : 'dropcatch';
+    // Ensure equal probability by using the counts
+    if (dropCatchCount === projectileCount) {
+        // If counts are equal, use random
+        gameMode = Math.random() < 0.5 ? 'projectile' : 'dropcatch';
+    } else if (dropCatchCount < projectileCount) {
+        // Force dropcatch if it's behind
+        gameMode = 'dropcatch';
+    } else {
+        // Force projectile if it's behind
+        gameMode = 'projectile';
+    }
+    
+    // Update counts
+    if (gameMode === 'dropcatch') {
+        dropCatchCount++;
+    } else {
+        projectileCount++;
+    }
     
     // Show mode indicator first
     modeIndicator.textContent = gameMode === 'dropcatch' ? 'Catch the falling ball!' : 'Click the moving ball!';
@@ -273,7 +300,7 @@ async function startCaptcha() {
                     animateProjectile();
                 }
             }, 300);
-        }, 1500); // Show message for 1.5 seconds
+        }, 1500);
     }, 0);
     
     timerElement.style.display = 'block';
