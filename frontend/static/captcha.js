@@ -14,23 +14,23 @@ let projectileCount = 0;
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
-const BALL_RADIUS = 12; // Reduced from 18 to 12 for better proportions
+const BALL_RADIUS = 10; // Reduced radius to make it rounder
 
 // Add device detection
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 // Adjust speeds based on device
-const SPEED_MULTIPLIER = isMobile ? 0.3 : 0.8; // Reduced from 0.5 to 0.3 for mobile, and added general speed reduction
-const GRAVITY_MULTIPLIER = isMobile ? 0.5 : 0.8; // Further reduced gravity effect
+const SPEED_MULTIPLIER = isMobile ? 0.35 : 0.85; // Increased speed
+const GRAVITY_MULTIPLIER = isMobile ? 0.4 : 0.75; // Increased gravity for faster falling
 
 const canvas = document.getElementById('captchaCanvas');
 const ctx = canvas.getContext('2d');
 
 function setCanvasSize() {
     const container = canvas.parentElement;
-    const maxWidth = Math.min(500, container.clientWidth - 40);
+    const maxWidth = Math.min(400, container.clientWidth - 20); // Reduced max width and padding
     canvas.width = maxWidth;
-    canvas.height = Math.min(300, window.innerHeight * 0.4);
+    canvas.height = Math.min(280, window.innerHeight * 0.35); // Slightly reduced height
 }
 
 window.addEventListener('resize', setCanvasSize);
@@ -165,9 +165,34 @@ function animateDropCatch() {
 function endGame(message, status) {
     isRunning = false;
     cancelAnimationFrame(animationId);
-    timerElement.style.display = 'none';
-    progressIndicator.classList.remove('show');
-    updateStatus(message, status);
+    
+    if (status === 'success') {
+        // Create and show the success overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'success-overlay';
+        overlay.innerHTML = `
+            <div class="success-message">
+                <div class="checkmark">✓</div>
+                <h2>Verification Successful!</h2>
+                <p>Redirecting...</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        
+        // Wait for a moment to show success message then redirect
+        setTimeout(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const returnUrl = urlParams.get('return_url');
+            if (returnUrl) {
+                window.location.href = returnUrl;
+            } else {
+                window.location.reload();
+            }
+        }, 2000); // Increased to 2 seconds to show the message
+    } else {
+        updateStatus(message, status);
+    }
+    
     const button = document.getElementById('startButton');
     button.disabled = false;
     button.textContent = 'Start Verification';
